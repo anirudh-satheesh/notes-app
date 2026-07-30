@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  <!-- Note pad document -->
+  <path d="M140 100h170l72 72v210c0 17.673-14.327 32-32 32H140c-17.673 0-32-14.327-32-32V132c0-17.673 14.327-32 32-32z" fill="#ffffff"/>
+  <!-- Corner fold -->
+  <path d="M310 100v72h72" fill="url(#fold)"/>
+  <!-- Document text lines -->
+  <rect x="156" y="210" width="200" height="20" rx="10" fill="#93c5fd"/>
+  <rect x="156" y="254" width="160" height="20" rx="10" fill="#93c5fd"/>
+  <rect x="156" y="298" width="180" height="20" rx="10" fill="#93c5fd"/>
+  <rect x="156" y="342" width="130" height="20" rx="10" fill="#93c5fd"/>
+</svg>

@@ -1,0 +1,22 @@
+CONTEXT.md
+Project.Md
+
+# Python
+env/
+venv/
+__pycache__/
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Logs
+*.log
