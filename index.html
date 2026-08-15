@@ -20,9 +20,54 @@
     <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Custom Styles -->
+    <style>
+        @keyframes slideIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        .toast.hide {
+            animation: slideOut 0.3s ease-in;
+        }
+        .unsaved-indicator {
+            color: #fbbf24;
+            font-weight: bold;
+            margin-left: 0.25rem;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
 </head>
 
 <body class="bg-slate-950 text-slate-100">
+
+    <!-- ================= TOAST NOTIFICATIONS ================= -->
+    <div id="toastContainer" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 max-w-sm pointer-events-none"></div>
+
+    <!-- ================= DELETE CONFIRMATION MODAL ================= -->
+    <div id="deleteConfirmModal" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-xl p-6 max-w-sm border border-slate-700">
+            <h2 class="text-lg font-bold mb-2">Delete note?</h2>
+            <p class="text-slate-300 mb-6">This action cannot be undone.</p>
+            <div class="flex gap-3 justify-end">
+                <button id="confirmDeleteCancel" class="px-4 py-2 rounded-xl border border-slate-600 hover:bg-slate-700">Cancel</button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500">Delete</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ================= HEADER ================= -->
 
@@ -105,14 +150,24 @@
 
             <div class="flex-1 p-8 flex flex-col">
 
-                <input id="noteTitleDesktop" type="text" placeholder="Untitled"
-                    class="text-4xl font-bold bg-transparent border-b border-slate-700 pb-3 outline-none placeholder:text-slate-600">
+                <div class="flex items-start justify-between gap-4 mb-3">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <input id="noteTitleDesktop" type="text" placeholder="Untitled"
+                                class="text-4xl font-bold bg-transparent border-b border-slate-700 pb-3 outline-none placeholder:text-slate-600 w-full">
+                            <span id="unsavedIndicatorDesktop" class="unsaved-indicator hidden">•</span>
+                        </div>
+                    </div>
+                </div>
 
                 <textarea id="noteContentDesktop" placeholder="Start writing..."
                     class="flex-1 mt-6 bg-transparent resize-none outline-none text-slate-300 placeholder:text-slate-600"></textarea>
 
-                <div class="flex justify-end gap-3">
-
+                <div class="flex justify-end gap-3 mt-6">
+                    <span id="saveStatusDesktop" class="text-sm text-slate-400 flex items-center gap-2">
+                        <span id="saveSpinner" class="hidden">⏳</span>
+                        <span id="saveMessage"></span>
+                    </span>
                     <button id="saveBtnDesktop" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500">
 
                         Save
@@ -172,14 +227,17 @@
         <!-- Editor -->
 
         <section id="mobileEditorView" class="hidden min-h-[calc(100vh-64px)] p-5 flex flex-col">
-            <button id="backBtn" class="mb-6 text-blue-400">
+            <div class="flex items-center justify-between mb-6">
+                <button id="backBtn" class="text-blue-400">
+                    ← Back
+                </button>
+                <span id="unsavedIndicatorMobile" class="unsaved-indicator hidden">●</span>
+            </div>
 
-                ← Back
-
-            </button>
-
-            <input id="noteTitleMobile" type="text" placeholder="Untitled"
-                class="text-3xl font-bold bg-transparent border-b border-slate-700 pb-3 outline-none">
+            <div class="flex items-center">
+                <input id="noteTitleMobile" type="text" placeholder="Untitled"
+                    class="text-3xl font-bold bg-transparent border-b border-slate-700 pb-3 outline-none flex-1">
+            </div>
 
             <textarea id="noteContentMobile" placeholder="Start writing..."
                 class="flex-1 mt-6 bg-transparent resize-none outline-none"></textarea>
@@ -193,11 +251,17 @@
 
                 </button>
 
-                <button id="saveBtnMobile" class="px-5 py-2 rounded-xl bg-blue-600">
+                <div class="flex items-center gap-3">
+                    <span id="saveStatusMobile" class="text-sm text-slate-400 flex items-center gap-2">
+                        <span id="saveSpinnerMobile" class="hidden">⏳</span>
+                        <span id="saveMessageMobile"></span>
+                    </span>
+                    <button id="saveBtnMobile" class="px-5 py-2 rounded-xl bg-blue-600">
 
-                    Save
+                        Save
 
-                </button>
+                    </button>
+                </div>
 
             </div>
 

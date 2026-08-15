@@ -10,6 +10,11 @@ import {
     setSearchQuery,
     getSearchQuery
 } from "./categories.js?v=20260730-4";
+import { showToast } from "./toast.js?v=20260730-4";
+
+// Track unsaved changes
+let unsavedChanges = false;
+let noteIdToDelete = null;
 
 const elements = {
 
@@ -18,6 +23,10 @@ const elements = {
     noteTitleDesktop: document.getElementById("noteTitleDesktop"),
     noteContentDesktop: document.getElementById("noteContentDesktop"),
     saveBtnDesktop: document.getElementById("saveBtnDesktop"),
+    unsavedIndicatorDesktop: document.getElementById("unsavedIndicatorDesktop"),
+    saveStatusDesktop: document.getElementById("saveStatusDesktop"),
+    saveSpinner: document.getElementById("saveSpinner"),
+    saveMessage: document.getElementById("saveMessage"),
 
     // Categories
     categoriesContainer: document.getElementById("categoriesContainer"),
@@ -41,6 +50,15 @@ const elements = {
     saveBtnMobile: document.getElementById("saveBtnMobile"),
     deleteBtnMobile: document.getElementById("deleteBtnMobile"),
     backBtn: document.getElementById("backBtn"),
+    unsavedIndicatorMobile: document.getElementById("unsavedIndicatorMobile"),
+    saveStatusMobile: document.getElementById("saveStatusMobile"),
+    saveSpinnerMobile: document.getElementById("saveSpinnerMobile"),
+    saveMessageMobile: document.getElementById("saveMessageMobile"),
+
+    // Delete confirmation modal
+    deleteConfirmModal: document.getElementById("deleteConfirmModal"),
+    confirmDeleteBtn: document.getElementById("confirmDeleteBtn"),
+    confirmDeleteCancel: document.getElementById("confirmDeleteCancel"),
 
     // Shared
     newNoteBtn: document.getElementById("newNoteBtn"),
@@ -52,6 +70,8 @@ const elements = {
 export async function initUI() {
 
     registerEvents();
+    setupDeleteConfirmModal();
+    setupBeforeUnload();
 
     initCategories(elements, renderNotes, selectNote);
 
@@ -66,6 +86,86 @@ export async function initUI() {
     state.selectedNote = null;
     clearEditor();
 
+}
+
+function setupDeleteConfirmModal() {
+    elements.confirmDeleteBtn?.addEventListener("click", async () => {
+        if (noteIdToDelete) {
+            await deleteNoteById(noteIdToDelete);
+            noteIdToDelete = null;
+        }
+        elements.deleteConfirmModal?.classList.add("hidden");
+    });
+
+    elements.confirmDeleteCancel?.addEventListener("click", () => {
+        noteIdToDelete = null;
+        elements.deleteConfirmModal?.classList.add("hidden");
+    });
+}
+
+function setupBeforeUnload() {
+    window.addEventListener("beforeunload", (event) => {
+        if (unsavedChanges) {
+            event.preventDefault();
+            event.returnValue = "";
+        }
+    });
+}
+
+function markAsUnsaved() {
+    unsavedChanges = true;
+    elements.unsavedIndicatorDesktop?.classList.remove("hidden");
+    elements.unsavedIndicatorMobile?.classList.remove("hidden");
+}
+
+function clearUnsavedIndicator() {
+    unsavedChanges = false;
+    elements.unsavedIndicatorDesktop?.classList.add("hidden");
+    elements.unsavedIndicatorMobile?.classList.add("hidden");
+    clearSaveStatus();
+}
+
+function showSaveStatus(message, type = "saving") {
+    if (window.innerWidth >= 1024) {
+        if (type === "saving") {
+            elements.saveSpinner?.classList.remove("hidden");
+            elements.saveMessage.textContent = "Saving...";
+        } else if (type === "saved") {
+            elements.saveSpinner?.classList.add("hidden");
+            elements.saveMessage.textContent = "Saved";
+            elements.saveMessage.classList.add("text-green-400");
+            setTimeout(() => clearSaveStatus(), 2000);
+        } else if (type === "error") {
+            elements.saveSpinner?.classList.add("hidden");
+            elements.saveMessage.textContent = "Error saving";
+            elements.saveMessage.classList.add("text-red-400");
+            setTimeout(() => clearSaveStatus(), 3000);
+        }
+    } else {
+        if (type === "saving") {
+            elements.saveSpinnerMobile?.classList.remove("hidden");
+            elements.saveMessageMobile.textContent = "Saving...";
+        } else if (type === "saved") {
+            elements.saveSpinnerMobile?.classList.add("hidden");
+            elements.saveMessageMobile.textContent = "Saved";
+            elements.saveMessageMobile.classList.add("text-green-400");
+            setTimeout(() => clearSaveStatus(), 2000);
+        } else if (type === "error") {
+            elements.saveSpinnerMobile?.classList.add("hidden");
+            elements.saveMessageMobile.textContent = "Error";
+            elements.saveMessageMobile.classList.add("text-red-400");
+            setTimeout(() => clearSaveStatus(), 3000);
+        }
+    }
+}
+
+function clearSaveStatus() {
+    elements.saveSpinner?.classList.add("hidden");
+    elements.saveMessage.textContent = "";
+    elements.saveMessage.classList.remove("text-green-400", "text-red-400");
+    elements.saveSpinnerMobile?.classList.add("hidden");
+    elements.saveMessageMobile.textContent = "";
+    elements.saveMessageMobile.classList.remove("text-green-400", "text-red-400");
 }
 
 function handleSearchInput(event) {
@@ -131,7 +231,7 @@ function registerEvents() {
     elements.newNoteBtn?.addEventListener("click", createNewNote);
     elements.fab?.addEventListener("click", createNewNote);
 
-    elements.backBtn?.addEventListener("click", closeMobileEditor);
+    elements.backBtn?.addEventListener("click", handleBackButton);
 
     elements.saveBtnDesktop?.addEventListener("click", saveCurrentNote);
     elements.saveBtnMobile?.addEventListener("click", saveCurrentNote);
@@ -153,7 +253,17 @@ function registerEvents() {
 
 }
 
+function handleBackButton() {
+    if (unsavedChanges) {
+        const confirmLeave = confirm("You have unsaved changes. Are you sure you want to leave?");
+        if (!confirmLeave) return;
+    }
+    closeMobileEditor();
+}
+
 function syncEditorFields(event) {
+    markAsUnsaved();
+    
     const isMobileInput = event.target === elements.noteTitleMobile || event.target === elements.noteContentMobile;
 
     if (isMobileInput) {
@@ -226,6 +336,7 @@ async function saveCurrentNote() {
 
     if (!state.selectedNote) {
         if (!trimmedTitle && !contentVal.trim()) {
+            showToast("Note cannot be empty", "error");
             return;
         }
 
@@ -250,7 +361,18 @@ async function saveCurrentNote() {
         state.selectedNote.updatedAt = new Date().toISOString();
     }
 
-    await saveDatabase(state.database);
+    try {
+        showSaveStatus("Saving...", "saving");
+        await saveDatabase(state.database);
+        showSaveStatus("Saved", "saved");
+        clearUnsavedIndicator();
+        showToast("Note saved successfully", "success");
+    } catch (error) {
+        console.error("Error saving note:", error);
+        showSaveStatus("Error saving", "error");
+        showToast("Failed to save note", "error");
+        return;
+    }
 
     renderNotes(getFilteredNotes());
 
@@ -266,7 +388,8 @@ async function deleteCurrentNote() {
 
     if (!state.selectedNote) return;
 
-    await deleteNoteById(state.selectedNote.id);
+    noteIdToDelete = state.selectedNote.id;
+    elements.deleteConfirmModal?.classList.remove("hidden");
 
 }
 
@@ -274,8 +397,16 @@ async function deleteNoteById(noteId) {
 
     state.database.notes = state.database.notes.filter(note => note.id !== noteId);
 
-    await saveDatabase(state.database);
+    try {
+        await saveDatabase(state.database);
+        showToast("Note deleted", "success");
+    } catch (error) {
+        console.error("Error deleting note:", error);
+        showToast("Failed to delete note", "error");
+        return;
+    }
 
+    clearUnsavedIndicator();
     const remainingNotes = getFilteredNotes();
 
     renderNotes(remainingNotes);
@@ -296,6 +427,7 @@ function clearEditor() {
     elements.noteContentDesktop.value = "";
     elements.noteTitleMobile.value = "";
     elements.noteContentMobile.value = "";
+    clearUnsavedIndicator();
 
 }
 
@@ -308,9 +440,16 @@ export function renderNotes(notes, emptyMessage = "No notes in this category.") 
 
     if (notes.length === 0) {
 
+        const isSearchEmpty = getSearchQuery().trim().length > 0;
+        const icon = isSearchEmpty ? "🔍" : "📝";
+        const message = isSearchEmpty ? "No matching notes found" : "No notes yet";
+        const suggestion = isSearchEmpty ? "Try a different search" : "Create your first note to get started";
+
         const empty = `
-            <div class="p-10 text-center text-slate-500">
-                ${emptyMessage}
+            <div class="p-10 text-center flex flex-col items-center justify-center min-h-64">
+                <div class="text-5xl mb-4">${icon}</div>
+                <p class="text-lg font-semibold text-slate-400 mb-2">${message}</p>
+                <p class="text-sm text-slate-500">${suggestion}</p>
             </div>
         `;
 
@@ -372,7 +511,8 @@ function createNoteCard(note) {
 
         if (deleteButton) {
             event.stopPropagation();
-            void deleteNoteById(note.id);
+            noteIdToDelete = note.id;
+            elements.deleteConfirmModal?.classList.remove("hidden");
             return;
         }
 
@@ -397,6 +537,7 @@ export function selectNote(id) {
     }
 
     state.selectedNote = selectedNote;
+    clearUnsavedIndicator();
 
     elements.noteTitleDesktop.value = state.selectedNote.title;
     elements.noteContentDesktop.value = state.selectedNote.content;
